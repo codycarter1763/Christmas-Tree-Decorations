@@ -29,8 +29,8 @@ jobs:
             ~/.platformio/.cache
             ~/.platformio/packages
             ~/.platformio/platforms
-          key: pio-${{ runner.os }}-${{ hashFiles('**/platformio.ini') }}
-          restore-keys: pio-${{ runner.os }}-
+          key: pio-esp32v6-${{ runner.os }}-${{ hashFiles('**/platformio.ini') }}
+          restore-keys: pio-esp32v6-${{ runner.os }}-
 
       - uses: actions/setup-python@v5
         with:
@@ -38,6 +38,14 @@ jobs:
 
       - name: Install PlatformIO
         run: pip install --upgrade platformio
+
+      # Local builds use the older Arduino core 2.x platform (espressif32 6.x).
+      # A fresh runner would grab the latest (core 3.x), which breaks the ESP-NOW
+      # callback signature. Pin CI to 6.x until platformio.ini pins it itself.
+      - name: Pin ESP32 platform to 6.x (Arduino core 2.x)
+        run: |
+          sed -i -E 's/^platform[[:space:]]*=[[:space:]]*espressif32[[:space:]]*$/platform = espressif32 @ ^6.0.0/' platformio.ini
+          grep -n '^platform' platformio.ini
 
       - name: Build ${{ matrix.env }}
         run: pio run -e ${{ matrix.env }}
