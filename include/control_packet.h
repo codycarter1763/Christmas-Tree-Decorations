@@ -1,0 +1,19 @@
+#ifndef CONTROL_PACKET_H_
+#define CONTROL_PACKET_H_
+
+#include <stdint.h>
+
+// Shared with the sender project -- keep both copies identical.
+enum Preset : uint16_t {
+  PRESET_RED = 0, PRESET_BLUE, PRESET_GREEN, PRESET_WHITE, PRESET_WARMWHITE,
+  PRESET_METEORRAIN, PRESET_CANDYCANE, PRESET_RAINBOW, PRESET_LSU,
+  PRESET_SNOW, PRESET_SHOOTINGSTAR, PRESET_LIGHTGREEN, PRESET_PASTELSWEEP, 
+  PRESET_RETROBULBS, PRESET_COLORSWEEP, PRESET_AURORA,PRESET_FIREWORKS, PRESET_BERRYTREE
+};
+
+typedef struct {
+  uint16_t  preset;
+  uint32_t startTime;
+} ControlPacket;
+
+#endif
