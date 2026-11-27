@@ -6,9 +6,13 @@
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
+#include <Preferences.h>
 
 #include "control_packet.h"   // same file as the trees: presets + packet
 #include "net_config.h"       // WIFI_CHANNEL: master tree's AP channel
+
+// Saved settings (NVS flash) -- survives power loss and firmware updates
+Preferences prefs;
 
 // =======================
 // RADIO CONFIG
@@ -68,9 +72,8 @@ const char* presetName(uint16_t preset) {
     case PRESET_SNOW:         return "Snow Sparkle";
     case PRESET_SHOOTINGSTAR: return "Shooting Star";
     case PRESET_BERRYTREE:    return "Berry Tree";
-    default:
-      return "Unknown";
-    }
+    default:                  return "Unknown";
+  }
 }
 
 // =======================
@@ -124,9 +127,11 @@ void handleButton() {
 
     if (state == LOW) {
       currentPreset++;
-      if (currentPreset > PRESET_BERRYTREE)
+
+      if (currentPreset >= PRESET_COUNT)     // wraps after the last preset, whatever it is
         currentPreset = PRESET_RED;
 
+      prefs.putUChar("preset", currentPreset);   // save after wrapping
       sendPreset();
       updateDisplay();
     }
@@ -141,6 +146,11 @@ void handleButton() {
 void setup() {
   Serial.begin(115200);
   pinMode(BUTTON_PIN, INPUT_PULLUP);
+
+  // Restore last preset (default on first boot or if the saved value is out of range)
+  prefs.begin("controller", false);
+  currentPreset = prefs.getUChar("preset", PRESET_CANDYCANE);
+  if (currentPreset >= PRESET_COUNT) currentPreset = PRESET_CANDYCANE;
 
   Wire.begin(I2C_SDA, I2C_SCL);
 

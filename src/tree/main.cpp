@@ -1,10 +1,14 @@
 #include <Arduino.h>
 #include <Adafruit_NeoPixel.h>
+#include <Preferences.h>
 #include "effects.h"
 #include "espnow_control.h"
 #include "wifi_ota.h"
 
 Adafruit_NeoPixel strip(LED_COUNT, LED_PIN, NEO_GRB + NEO_KHZ800);
+
+// Saved settings (NVS flash) -- survives power loss and OTA updates
+static Preferences prefs;
 
 // Only the LED task touches these
 uint8_t  currentPreset   = PRESET_CANDYCANE;
@@ -17,21 +21,21 @@ static void runEffect(uint16_t p) {
     case PRESET_BLUE:         Blue();         break;
     case PRESET_GREEN:        Green();        break;
     case PRESET_LIGHTGREEN:   lightGreen();   break;
+    case PRESET_WHITE:        White();        break;
+    case PRESET_WARMWHITE:    warmWhite();    break;
     case PRESET_PASTELSWEEP:  pastelSweep();  break;
     case PRESET_COLORSWEEP:   colorSweep();   break;
     case PRESET_RETROBULBS:   retroBulbs();   break;
-    case PRESET_AURORA:       aurora(); break;
-    case PRESET_FIREWORKS:    fireworks(); break;
-    case PRESET_WHITE:        White(); break;
-    case PRESET_WARMWHITE:    warmWhite();    break;
-    case PRESET_METEORRAIN:   meteorRain(0xff, 0xff, 0xff, 30, 64, true, 60);   break;
+    case PRESET_AURORA:       aurora();       break;
+    case PRESET_FIREWORKS:    fireworks();    break;
+    case PRESET_METEORRAIN:   meteorRain(0xff, 0xff, 0xff, 30, 64, true, 60); break;
     case PRESET_CANDYCANE:    candyCane();    break;
     case PRESET_RAINBOW:      rainbow();      break;
     case PRESET_LSU:          LSU();          break;
     case PRESET_SNOW:         SnowSparkle(0x10, 0x10, 0x10, 20, 200); break;
     case PRESET_SHOOTINGSTAR: shootingStar(); break;
-    case PRESET_BERRYTREE: berryTree(); break;
-    }
+    case PRESET_BERRYTREE:    berryTree();    break;
+  }
 }
 
 static void drawOtaProgress() {
@@ -47,10 +51,12 @@ void ledTask(void *) {
 
   for (;;) {
     ControlPacket pkt;
-    // Controller resends periodically; only restart the effect on a real change
-    if (espnowControlGetCommand(pkt) && pkt.preset != currentPreset) {
+    // Controller resends every second; only act on a real, known preset change
+    if (espnowControlGetCommand(pkt) && pkt.preset != currentPreset
+        && pkt.preset < PRESET_COUNT) {
       currentPreset   = pkt.preset;
-      presetStartTime = millis();   // receiver's clock, not the sender's
+      presetStartTime = millis();               // receiver's clock, not the sender's
+      prefs.putUChar("preset", currentPreset);  // remember across power loss
     }
 
     if (wifiOtaInProgress()) drawOtaProgress();
@@ -64,6 +70,12 @@ void setup() {
   Serial.begin(115200);
   strip.begin();
   strip.show();
+
+  // Restore last preset (default on first boot or if the saved value is out of range)
+  prefs.begin("tree", false);
+  currentPreset = prefs.getUChar("preset", PRESET_CANDYCANE);
+  if (currentPreset >= PRESET_COUNT) currentPreset = PRESET_CANDYCANE;
+  presetStartTime = millis();
 
   wifiOtaBegin();   // AP (master) or join master (receiver), plus OTA task
 
